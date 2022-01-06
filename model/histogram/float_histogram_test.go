@@ -479,6 +479,206 @@ func TestFloatHistogramDetectReset(t *testing.T) {
 			},
 			true,
 		},
+		{
+			"zero threshold decreases",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.009,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			true,
+		},
+		{
+			"zero threshold increases without touching any existing buckets",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.011,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			false,
+		},
+		{
+			"zero threshold increases enough to cover existing buckets",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   1,
+				ZeroCount:       7.73,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{1, 3}},
+				PositiveBuckets: []float64{3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			false,
+		},
+		{
+			"zero threshold increases into the middle of an existing buckets",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.3,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			true,
+		},
+		{
+			"schema increases without any other changes",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          0,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          1,
+				PositiveSpans:   []Span{{-5, 4}, {2, 6}},
+				PositiveBuckets: []float64{0.4, 0.6, 1, 0.23, 2, 1.3, 1.2, 3, 0.05, 0.05},
+				NegativeSpans:   []Span{{5, 4}, {6, 4}},
+				NegativeBuckets: []float64{2, 1.1, 2, 1, 0.234e5, 1e5, 500, 500},
+			},
+			true,
+		},
+		{
+			"schema decreases without any other changes",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          1,
+				PositiveSpans:   []Span{{-5, 4}, {2, 6}},
+				PositiveBuckets: []float64{0.4, 0.6, 1, 0.23, 2, 1.3, 1.2, 3, 0.05, 0.05},
+				NegativeSpans:   []Span{{5, 4}, {6, 4}},
+				NegativeBuckets: []float64{2, 1.1, 2, 1, 0.234e5, 1e5, 500, 500},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          0,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 3.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			false,
+		},
+		{
+			"schema decreases and a bucket goes up",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          1,
+				PositiveSpans:   []Span{{-5, 4}, {2, 6}},
+				PositiveBuckets: []float64{0.4, 0.6, 1, 0.23, 2, 1.3, 1.2, 3, 0.05, 0.05},
+				NegativeSpans:   []Span{{5, 4}, {6, 4}},
+				NegativeBuckets: []float64{2, 1.1, 2, 1, 0.234e5, 1e5, 500, 500},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          0,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 4.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			false,
+		},
+		{
+			"schema decreases and a bucket goes down",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          1,
+				PositiveSpans:   []Span{{-5, 4}, {2, 6}},
+				PositiveBuckets: []float64{0.4, 0.6, 1, 0.23, 2, 1.3, 1.2, 3, 0.05, 0.05},
+				NegativeSpans:   []Span{{5, 4}, {6, 4}},
+				NegativeBuckets: []float64{2, 1.1, 2, 1, 0.234e5, 1e5, 500, 500},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       5.5,
+				Count:           3493.3,
+				Sum:             2349209.324,
+				Schema:          0,
+				PositiveSpans:   []Span{{-2, 2}, {1, 3}},
+				PositiveBuckets: []float64{1, 1.23, 2.3, 4.2, 0.1},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},
+			},
+			true,
+		},
 	}
 
 	for _, c := range cases {
@@ -774,7 +974,7 @@ func TestFloatHistogramAdd(t *testing.T) {
 		{
 			"non-overlapping spans",
 			&FloatHistogram{
-				ZeroThreshold:   0.01,
+				ZeroThreshold:   0.001,
 				ZeroCount:       11,
 				Count:           30,
 				Sum:             2.345,
@@ -784,7 +984,7 @@ func TestFloatHistogramAdd(t *testing.T) {
 				NegativeBuckets: []float64{3, 1, 5, 6},
 			},
 			&FloatHistogram{
-				ZeroThreshold:   0.01,
+				ZeroThreshold:   0.001,
 				ZeroCount:       8,
 				Count:           21,
 				Sum:             1.234,
@@ -794,7 +994,7 @@ func TestFloatHistogramAdd(t *testing.T) {
 				NegativeBuckets: []float64{1, 1, 4, 4},
 			},
 			&FloatHistogram{
-				ZeroThreshold:   0.01,
+				ZeroThreshold:   0.001,
 				ZeroCount:       19,
 				Count:           51,
 				Sum:             3.579,
@@ -903,6 +1103,109 @@ func TestFloatHistogramAdd(t *testing.T) {
 				NegativeBuckets: []float64{3, 2, 1, 4, 9, 6},
 			},
 		},
+		{
+			"schema change",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       8,
+				Count:           21,
+				Sum:             1.234,
+				Schema:          0,
+				PositiveSpans:   []Span{{-1, 4}, {0, 3}},
+				PositiveBuckets: []float64{5, 4, 2, 3, 6, 2, 5},
+				NegativeSpans:   []Span{{4, 2}, {1, 2}},
+				NegativeBuckets: []float64{1, 1, 4, 4},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       11,
+				Count:           30,
+				Sum:             2.345,
+				Schema:          1,
+				PositiveSpans:   []Span{{-4, 3}, {5, 5}},
+				PositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},
+				NegativeSpans:   []Span{{6, 3}, {6, 4}},
+				NegativeBuckets: []float64{3, 0.5, 0.5, 2, 3, 2, 4},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       19,
+				Count:           51,
+				Sum:             3.579,
+				PositiveSpans:   []Span{{-2, 5}, {0, 3}},
+				PositiveBuckets: []float64{1, 5, 4, 2, 6, 10, 9, 5},
+				NegativeSpans:   []Span{{3, 3}, {1, 3}},
+				NegativeBuckets: []float64{3, 2, 1, 4, 9, 6},
+			},
+		},
+		{
+			"larger zero bucket in first histogram",
+			&FloatHistogram{
+				ZeroThreshold:   1,
+				ZeroCount:       17,
+				Count:           21,
+				Sum:             1.234,
+				PositiveSpans:   []Span{{1, 2}, {0, 3}},
+				PositiveBuckets: []float64{2, 3, 6, 2, 5},
+				NegativeSpans:   []Span{{4, 2}, {1, 2}},
+				NegativeBuckets: []float64{1, 1, 4, 4},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       11,
+				Count:           30,
+				Sum:             2.345,
+				PositiveSpans:   []Span{{-2, 2}, {2, 3}},
+				PositiveBuckets: []float64{1, 0, 3, 4, 7},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3, 1, 5, 6},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   1,
+				ZeroCount:       29,
+				Count:           51,
+				Sum:             3.579,
+				PositiveSpans:   []Span{{1, 2}, {0, 3}},
+				PositiveBuckets: []float64{2, 6, 10, 9, 5},
+				NegativeSpans:   []Span{{3, 3}, {1, 3}},
+				NegativeBuckets: []float64{3, 2, 1, 4, 9, 6},
+			},
+		},
+		{
+			"larger zero bucket in second histogram",
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       11,
+				Count:           30,
+				Sum:             2.345,
+				PositiveSpans:   []Span{{-2, 2}, {2, 3}},
+				PositiveBuckets: []float64{1, 0, 3, 4, 7},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3, 1, 5, 6},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   1,
+				ZeroCount:       17,
+				Count:           21,
+				Sum:             1.234,
+				PositiveSpans:   []Span{{1, 2}, {0, 3}},
+				PositiveBuckets: []float64{2, 3, 6, 2, 5},
+				NegativeSpans:   []Span{{4, 2}, {1, 2}},
+				NegativeBuckets: []float64{1, 1, 4, 4},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   1,
+				ZeroCount:       29,
+				Count:           51,
+				Sum:             3.579,
+				PositiveSpans:   []Span{{1, 5}},
+				PositiveBuckets: []float64{2, 6, 10, 9, 5},
+				NegativeSpans:   []Span{{3, 7}},
+				NegativeBuckets: []float64{3, 2, 1, 0, 4, 9, 6},
+			},
+		},
+		// TODO: zero bucket change in the middle of bucket
+		// TODO: various combinations thereof
 	}
 
 	for _, c := range cases {
@@ -954,6 +1257,7 @@ func TestFloatHistogramSub(t *testing.T) {
 				NegativeBuckets: []float64{2, 0, 1, 2},
 			},
 		},
+		// TODO: some schema/zero bucket changes
 	}
 
 	for _, c := range cases {
@@ -961,6 +1265,73 @@ func TestFloatHistogramSub(t *testing.T) {
 			require.Equal(t, c.expected, c.in1.Sub(c.in2))
 			// Has it also happened in-place?
 			require.Equal(t, c.expected, c.in1)
+		})
+	}
+}
+
+func TestFloatHistogramCopyToSchema(t *testing.T) {
+	cases := []struct {
+		name         string
+		targetSchema int32
+		in, expected *FloatHistogram
+	}{
+		{
+			"no schema change",
+			1,
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       11,
+				Count:           30,
+				Sum:             2.345,
+				Schema:          1,
+				PositiveSpans:   []Span{{-4, 3}, {5, 5}},
+				PositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},
+				NegativeSpans:   []Span{{6, 3}, {6, 4}},
+				NegativeBuckets: []float64{3, 0.5, 0.5, 2, 3, 2, 4},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       11,
+				Count:           30,
+				Sum:             2.345,
+				Schema:          1,
+				PositiveSpans:   []Span{{-4, 3}, {5, 5}},
+				PositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},
+				NegativeSpans:   []Span{{6, 3}, {6, 4}},
+				NegativeBuckets: []float64{3, 0.5, 0.5, 2, 3, 2, 4},
+			},
+		},
+		{
+			"schema change",
+			0,
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       11,
+				Count:           30,
+				Sum:             2.345,
+				Schema:          1,
+				PositiveSpans:   []Span{{-4, 3}, {5, 5}},
+				PositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},
+				NegativeSpans:   []Span{{6, 3}, {6, 4}},
+				NegativeBuckets: []float64{3, 0.5, 0.5, 2, 3, 2, 4},
+			},
+			&FloatHistogram{
+				ZeroThreshold:   0.01,
+				ZeroCount:       11,
+				Count:           30,
+				Sum:             2.345,
+				Schema:          0,
+				PositiveSpans:   []Span{{-2, 2}, {2, 3}},
+				PositiveBuckets: []float64{1, 0, 3, 4, 7},
+				NegativeSpans:   []Span{{3, 2}, {3, 2}},
+				NegativeBuckets: []float64{3, 1, 5, 6},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.expected, c.in.CopyToSchema(c.targetSchema))
 		})
 	}
 }
