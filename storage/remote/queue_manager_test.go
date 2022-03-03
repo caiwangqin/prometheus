@@ -20,6 +20,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"runtime/pprof"
 	"sort"
 	"strconv"
 	"strings"
@@ -413,11 +414,50 @@ func TestReshardPartialBatch(t *testing.T) {
 		case <-done:
 		case <-time.After(2 * time.Second):
 			t.Error("Deadlock between sending and stopping detected")
+			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 			t.FailNow()
 		}
 	}
 	// We can only call stop if there was not a deadlock.
 	m.Stop()
+}
+
+func TestQueueFilledDeadlock(t *testing.T) {
+	samples, series := createTimeseries(100, 1)
+
+	c := NewNopWriteClient()
+
+	cfg := config.DefaultQueueConfig
+	mcfg := config.DefaultMetadataConfig
+	cfg.MaxShards = 1
+	cfg.MaxSamplesPerSend = 100
+	cfg.Capacity = cfg.MaxSamplesPerSend - 1
+	flushDeadline := time.Second
+	batchSendDeadline := time.Millisecond
+	cfg.BatchSendDeadline = model.Duration(batchSendDeadline)
+
+	metrics := newQueueManagerMetrics(nil, "", "")
+
+	m := NewQueueManager(metrics, nil, nil, nil, t.TempDir(), newEWMARate(ewmaWeight, shardUpdateDuration), cfg, mcfg, nil, nil, c, flushDeadline, newPool(), newHighestTimestampMetric(), nil, false)
+	m.StoreSeries(series, 0)
+	m.Start()
+	defer m.Stop()
+
+	for i := 0; i < 100; i++ {
+		done := make(chan struct{})
+		go func() {
+			time.Sleep(batchSendDeadline)
+			m.Append(samples)
+			done <- struct{}{}
+		}()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Error("Deadlock between sending and appending detected")
+			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+			t.FailNow()
+		}
+	}
 }
 
 func TestReleaseNoninternedString(t *testing.T) {
@@ -709,6 +749,36 @@ func (c *TestBlockingWriteClient) Name() string {
 }
 
 func (c *TestBlockingWriteClient) Endpoint() string {
+	return "http://test-remote-blocking.com/1234"
+}
+
+// TestBlockingWriteClient is a queue_manager WriteClient which will block
+// on any calls to Store(), until the request's Context is cancelled, at which
+// point the `numCalls` property will contain a count of how many times Store()
+// was called.
+type TestSlowWriteClient struct {
+	latency time.Duration
+}
+
+func NewTestSlowWriteClient(latency time.Duration) *TestSlowWriteClient {
+	return &TestSlowWriteClient{
+		latency: latency,
+	}
+}
+
+func (c *TestSlowWriteClient) Store(ctx context.Context, _ []byte) error {
+	select {
+	case <-time.After(c.latency):
+	case <-ctx.Done():
+	}
+	return nil
+}
+
+func (c *TestSlowWriteClient) Name() string {
+	return "testblockingwriteclient"
+}
+
+func (c *TestSlowWriteClient) Endpoint() string {
 	return "http://test-remote-blocking.com/1234"
 }
 
